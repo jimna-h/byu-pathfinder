@@ -745,6 +745,7 @@ function renderMap(){
       <text x="0" y="4" text-anchor="middle" font-size="12" font-family="var(--mono)" fill="var(--ink-2)">${w} min</text></g>`;
   });
   // building markers + labels
+  const LS=Math.max(0.6,Math.min(1,VBW/540));   // scale code labels down on narrow (mobile) maps
   BUILDINGS.forEach(b=>{
     const code=b[0],p=PT[code],used=usedSet.has(code),hasFoot=!!(FOOT&&FOOT[code]);
     if(used){
@@ -753,13 +754,13 @@ function renderMap(){
       const order=usedOrder.indexOf(code)+1;
       svg+=`<circle cx="${p.x}" cy="${p.y}" r="${hasFoot?11:12}" data-code="${code}" fill="${col}" stroke="#fff" stroke-width="${hasFoot?2.5:3}"/>`;
       svg+=`<text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="var(--mono)">${order}</text>`;
-      svg+=`<text x="${p.x}" y="${p.y-16}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)" font-family="var(--mono)" paint-order="stroke" stroke="#fff" stroke-width="3">${code}</text>`;
+      svg+=`<text x="${p.x}" y="${(p.y-16*LS).toFixed(1)}" text-anchor="middle" font-size="${(13*LS).toFixed(1)}" font-weight="700" fill="var(--ink)" font-family="var(--mono)" paint-order="stroke" stroke="#fff" stroke-width="${(3*LS).toFixed(1)}">${code}</text>`;
       if(count>1)svg+=`<circle cx="${p.x+12}" cy="${p.y-11}" r="7" fill="var(--ink)"/>
         <text x="${p.x+12}" y="${p.y-7}" text-anchor="middle" font-size="9" fill="#fff" font-family="var(--mono)">${count}</text>`;
     }else{
       if(!hasFoot)svg+=`<circle cx="${p.x}" cy="${p.y}" r="4" fill="#aebecd"/>`;
-      svg+=`<text x="${p.x}" y="${hasFoot?p.y+3:p.y-8}" text-anchor="middle" font-size="10" fill="#7f93a6" font-family="var(--mono)"
-        paint-order="stroke" stroke="${hasFoot?'#e6edf3':'transparent'}" stroke-width="2.5">${code}</text>`;
+      svg+=`<text x="${p.x}" y="${(hasFoot?p.y+3*LS:p.y-8*LS).toFixed(1)}" text-anchor="middle" font-size="${(10*LS).toFixed(1)}" fill="#7f93a6" font-family="var(--mono)"
+        paint-order="stroke" stroke="${hasFoot?'#e6edf3':'transparent'}" stroke-width="${(2.5*LS).toFixed(1)}">${code}</text>`;
     }
   });
   svg+=`</g>`; // end pan/zoom group
