@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BYU Pathfinder — schedule & campus route</title>
+<style>
+  :root{
+    --ink:#0a2540;          /* deep campus navy */
+    --ink-2:#33475b;        /* muted navy       */
+    --line:#c9d6e2;         /* hairline         */
+    --map-bg:#e6edf3;       /* wayfinding paper */
+    --map-road:#ffffff;
+    --surface:#ffffff;
+    --surface-2:#f2f6f9;
+    --royal:#0062b8;        /* BYU royal accent */
+    --danger:#c0392b;
+    --ok:#17795e;
+    --pad:16px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--surface-2);
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- masthead ---------- */
+  header{
+    background:var(--ink);
+    color:#fff;
+    padding:14px 20px;
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    border-bottom:3px solid var(--royal);
+  }
+  header .mark{
+    font-family:var(--mono);
+    font-weight:700;letter-spacing:.12em;
+    background:#fff;color:var(--ink);
+    padding:3px 8px;border-radius:3px;font-size:13px;
+  }
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.01em}
+  header .sub{color:#9fb6cc;font-size:12.5px;margin-left:auto;font-family:var(--mono)}
+
+  .wrap{
+    display:grid;
+    grid-template-columns:minmax(320px,380px) 1fr;
+    gap:0;
+    min-height:calc(100vh - 54px);
+  }
+  @media(max-width:860px){ .wrap{grid-template-columns:1fr} }
+
+  /* ---------- left: builder ---------- */
+  .builder{
+    background:var(--surface);
+    border-right:1px solid var(--line);
+    padding:var(--pad);
+    display:flex;flex-direction:column;gap:16px;
+  }
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink-2);
+  }
+  .card{
+    border:1px solid var(--line);border-radius:10px;
+    padding:14px;background:var(--surface);
+  }
+  label{display:block;font-size:12px;font-weight:600;margin:0 0 5px;color:var(--ink-2)}
+  input,select{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;
+    font:inherit;font-size:14px;color:var(--ink);background:#fff;
+  }
+  input:focus,select:focus{outline:2px solid var(--royal);outline-offset:0;border-color:var(--royal)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{margin-bottom:10px}
+  .code-in{font-family:var(--mono);text-transform:uppercase}
+
+  .days{display:flex;gap:6px}
+  .day-chip{
+    flex:1;text-align:center;padding:8px 0;border:1px solid var(--line);
+    border-radius:7px;cursor:pointer;font-family:var(--mono);font-size:13px;
+    font-weight:600;color:var(--ink-2);user-select:none;background:#fff;
+  }
+  .day-chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .btn{
+    border:none;border-radius:7px;padding:10px 14px;font:inherit;font-weight:600;
+    cursor:pointer;font-size:14px;
+  }
+  .btn-primary{background:var(--royal);color:#fff;width:100%}
+  .btn-primary:hover{background:#004f96}
+  .btn-ghost{background:var(--surface-2);color:var(--ink-2)}
+  .form-actions{display:flex;gap:8px;margin-top:4px}
+
+  .err{color:var(--danger);font-size:12.5px;min-height:16px;margin:2px 0 0}
+
+  /* class list */
+  .classlist{display:flex;flex-direction:column;gap:8px;overflow:auto}
+  .cls{
+    display:grid;grid-template-columns:6px 1fr auto;gap:10px;align-items:center;
+    border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fff;
+  }
+  .cls .swatch{width:6px;height:100%;border-radius:3px;min-height:34px}
+  .cls .code{font-family:var(--mono);font-weight:700;font-size:13px}
+  .cls .name{font-size:12.5px;color:var(--ink-2);margin-top:1px}
+  .cls .meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);margin-top:3px}
+  .cls .tools{display:flex;gap:4px}
+  .icon-btn{border:none;background:transparent;cursor:pointer;color:var(--ink-2);
+    font-size:12px;padding:4px 6px;border-radius:6px;font-family:var(--mono)}
+  .icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .empty{color:var(--ink-2);font-size:13px;padding:18px 10px;text-align:center;
+    border:1px dashed var(--line);border-radius:9px;line-height:1.5}
+
+  /* ---------- right: map + timeline ---------- */
+  .board{padding:var(--pad);display:flex;flex-direction:column;gap:14px;background:var(--surface-2)}
+  .board-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .daysel{display:flex;gap:6px;flex-wrap:wrap}
+  .daysel button{
+    font-family:var(--mono);font-size:13px;font-weight:600;padding:7px 13px;
+    border:1px solid var(--line);background:#fff;border-radius:20px;cursor:pointer;color:var(--ink-2);
+  }
+  .daysel button[aria-pressed="true"]{background:var(--royal);border-color:var(--royal);color:#fff}
+
+  .panels{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
+  @media(max-width:1180px){ .panels{grid-template-columns:1fr} }
+
+  .mapcard{background:var(--map-bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative}
+  .mapcard svg{display:block;width:100%;height:auto}
+  .legend{position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.9);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--mono);
+    font-size:11px;color:var(--ink-2);line-height:1.6;backdrop-filter:blur(2px)}
+  .legend b{color:var(--ink)}
+
+  /* departure-board timeline */
+  .timeline{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .timeline h3{margin:0 0 2px;font-size:14px}
+  .timeline .day-label{font-family:var(--mono);font-size:11px;color:var(--ink-2);
+    letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+  .stop{display:grid;grid-template-columns:auto 1fr;gap:11px}
+  .stop .rail{display:flex;flex-direction:column;align-items:center}
+  .stop .dot{width:13px;height:13px;border-radius:50%;border:3px solid #fff;
+    box-shadow:0 0 0 1.5px currentColor;margin-top:3px}
+  .stop .stem{flex:1;width:2px;background:var(--line);margin:3px 0}
+  .stop .body{padding-bottom:6px}
+  .stop .time{font-family:var(--mono);font-size:12px;font-weight:700}
+  .stop .where{font-size:13px;font-weight:600;margin-top:1px}
+  .stop .rm{font-size:12px;color:var(--ink-2)}
+  .gap{font-family:var(--mono);font-size:11px;color:var(--ink-2);
+    margin:2px 0 8px 24px;padding-left:10px;border-left:2px dotted var(--line)}
+  .gap.tight{color:var(--danger)}
+  .gap.tight b{color:var(--danger)}
+  .gap.ok b{color:var(--ok)}
+
+  .note{font-size:11.5px;color:var(--ink-2);line-height:1.5;margin-bottom:10px}
+  footer{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:8px 20px;color:var(--ink-2);font-size:11px;border-top:1px solid var(--line);background:#fff}
+  a{color:var(--royal)}
+  /* time blocks in the form */
+  .tblock{border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:10px;background:var(--surface-2)}
+  .tblock-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+  .tblock .row{margin-bottom:8px}
+  .tblock .row:last-child{margin-bottom:0}
+  .tblock label{font-size:11px;margin-bottom:3px}
+  .tblock .days{margin-bottom:8px}
+  .opt{font-weight:400;color:#8aa}
+  .btn-add{background:var(--surface-2);color:var(--royal);border:1px dashed var(--line);width:100%;margin-bottom:8px}
+  .btn-add:hover{background:#eaf1f7;border-color:var(--royal)}
+
+  /* map pan/zoom */
+  #map{cursor:grab;touch-action:none}
+  .mapzoom{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+  .mapzoom button{width:34px;height:34px;border:1px solid var(--line);background:rgba(255,255,255,.92);
+    border-radius:8px;cursor:pointer;font-size:17px;font-weight:700;color:var(--ink);font-family:var(--mono);
+    line-height:1;display:flex;align-items:center;justify-content:center}
+  .mapzoom button:hover{background:#fff;border-color:var(--royal);color:var(--royal)}
+
+  /* map is the centerpiece: full-width, route sits beneath it */
+  .panels{display:flex;flex-direction:column;gap:14px}
+  #map{width:min(100%,78vh);height:clamp(340px,58vh,620px);margin:0 auto;user-select:none;-webkit-user-select:none}
+  .mapcard svg{width:100%;height:100%;display:block}
+  #map svg *{pointer-events:none}
+  #map svg [data-code]{pointer-events:auto;cursor:pointer}
+
+  /* building tooltip */
+  .maptip{position:absolute;z-index:6;display:none;pointer-events:none;background:#fff;
+    border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(10,37,64,.16);
+    padding:9px 11px;max-width:240px;font-size:12px}
+  .maptip .tip-h{font-family:var(--mono);font-weight:700;font-size:11px;color:var(--ink);margin-bottom:6px}
+  .maptip .tip-r{display:flex;align-items:center;gap:7px;color:var(--ink-2);margin:3px 0;line-height:1.3}
+  .maptip .tip-sw{width:9px;height:9px;border-radius:2px;flex:none}
+
+  /* route strip (under the map) */
+  .routebar{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .route-head{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-2);margin-bottom:12px}
+  .routestrip{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .rcard{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:9px;
+    padding:9px 12px;background:#fff;min-width:150px}
+  .rc-time{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)}
+  .rc-code{font-size:13.5px;font-weight:600;margin-top:4px}
+  .rc-loc{font-size:11.5px;color:var(--ink-2);margin-top:4px}
+  .rc-loc b{font-family:var(--mono);color:var(--ink)}
+  .rconn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    min-width:78px;font-family:var(--mono);font-size:10.5px;color:var(--ink-2);text-align:center}
+  .rc-line{width:54px;border-top:2px solid var(--ink-2);opacity:.55}
+  .rconn.dashed .rc-line{border-top-style:dashed}
+  .rconn.dotted .rc-line{border-top-style:dotted}
+  .rc-line.same{border-top-style:dotted;opacity:.3}
+  .rc-walk{font-weight:700;color:var(--ink)}
+  .rconn.tight .rc-walk,.rconn.tight .rc-gap{color:var(--danger)}
+</style>
+</head>
+<body>
+<header>
+  <span class="mark">Y</span>
+  <h1>BYU Pathfinder</h1>
+  <span class="sub">schedule → campus route</span>
+</header>
+
+<div class="wrap">
+  <!-- ============ BUILDER ============ -->
+  <section class="builder">
+    <div>
+      <div class="eyebrow">1 · Build your schedule</div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label for="f-code">Class</label>
+        <input id="f-code" class="code-in" placeholder="C S 142" autocomplete="off">
+      </div>
+      <!-- Class name field removed (redundant with the class identifier above). To restore, uncomment:
+      <div class="field">
+        <label for="f-name">Class name</label>
+        <input id="f-name" placeholder="Intro to Computer Science" autocomplete="off">
+      </div>
+      -->
+      <div class="eyebrow" style="margin:6px 0 8px">Meeting times</div>
+      <div id="f-times"></div>
+      <button type="button" class="btn btn-add" id="f-addtime">+ Add another time</button>
+      <p class="err" id="f-err"></p>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="f-submit">Add class</button>
+        <button class="btn btn-ghost" id="f-cancel" style="display:none">Cancel</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="eyebrow" style="margin-bottom:8px">Your classes</div>
+      <div class="classlist" id="classlist"></div>
+    </div>
+  </section>
+
+  <!-- ============ BOARD ============ -->
+  <section class="board">
+    <div class="board-head">
+      <div class="eyebrow">2 · Your day on campus</div>
+      <div class="daysel" id="daysel"></div>
+    </div>
+
+    <div class="panels">
+      <div class="mapcard">
+        <div id="map"></div>
+        <div id="maptip" class="maptip"></div>
+        <div class="mapzoom">
+          <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+          <button id="zoom-reset" title="Reset view" aria-label="Reset view">⟲</button>
+        </div>
+      </div>
+      <div class="routebar" id="timeline"></div>
+    </div>
+
+    <p class="note">Drag to pan, scroll or pinch to zoom, and tap a colored building to see its class.
+      Building shapes come from BYU's official campus map layer (Utah State Plane feet), so distances and
+      walk times are to scale — good for spotting a tight passing period, not exact turn-by-turn directions.
+      This prototype keeps your schedule in the browser session only (nothing is saved yet).</p>
+  </section>
+</div>
+
+<footer>BYU Pathfinder · originally the idea of a group of MCOM 320 students. Unofficial student tool, not affiliated with BYU. Building data from BYU's campus map layer.</footer>
+
+<script>
+/* ---- campus data: official BYU_Campus_Buildings FeatureServer (building centroids) ----
+   Coordinates are Utah State Plane, Central Zone, US survey feet (EPSG:2281) — a flat grid,
+   so straight-line distance in feet is true ground distance. Central academic core only.
+   Note: this layer is a 2019 snapshot, so a few recent changes (e.g. the HFAC demolition /
+   new Music Building) aren't reflected yet. [code, name, x_ft, y_ft] */
+const BUILDINGS = [
+  ["ASB","Administration Building",1598756.56,7260143.17],
+  ["BNSN","Benson Building",1598423.42,7258365.23],
+  ["BRMB","Brimhall Building",1597893.98,7258469.1],
+  ["CB","Clyde Engineering Building",1599095.11,7258730.32],
+  ["CTB","Crabtree Technology Building",1599515.86,7258989.98],
+  ["EB","Engineering Building",1599149.61,7258476.79],
+  ["ESC","Eyring Science Center",1598488.11,7258804.57],
+  ["HBLL","Harold B. Lee Library",1598766.19,7259350.3],
+  ["HC","Hinckley Center",1598088.66,7260480.46],
+  ["HFAC","Harris Fine Arts Center",1599104.54,7259821.47],
+  ["HGB","Grant Building (Testing Center)",1597861.38,7258190.36],
+  ["HRCB","Herald R. Clark (Kennedy Center)",1598747.51,7258973.95],
+  ["JFSB","Joseph F. Smith Building",1598220.85,7259269.04],
+  ["JKB","Jesse Knight Building",1598508.51,7259862.6],
+  ["JRCB","J. Reuben Clark (Law School)",1599867.99,7259673.95],
+  ["JSB","Joseph Smith Building",1598083.56,7258327.29],
+  ["KMBL","Spencer W. Kimball Tower",1598227.49,7258894.3],
+  ["LSB","Life Sciences Building",1598743.37,7258027.15],
+  ["MARB","Martin Building",1598772.24,7258688.96],
+  ["MCDB","McDonald Building",1599007.64,7258268.21],
+  ["MCKB","David O. McKay Building",1598036.85,7258809.22],
+  ["MOA","Museum of Art",1599115.67,7260119.34],
+  ["MSRB","Maeser Building",1597580.62,7258160.61],
+  ["RB","Richards Building",1597586.59,7259480.15],
+  ["SFH","Smith Fieldhouse",1597370.34,7258900.81],
+  ["SNLB","Snell Building",1599869.21,7258856.93],
+  ["TMCB","Talmage Math/Computer Building",1598304.59,7259641.3],
+  ["TNRB","Tanner Building (Business)",1597855.49,7259998.51],
+  ["WSC","Wilkinson Student Center",1599302.1,7259311.76],
+];
+const BMAP = Object.fromEntries(BUILDINGS.map(b=>[b[0],{code:b[0],name:b[1],x:b[2],y:b[3]}]));
+
+const DAYS = [["M","Mon"],["T","Tue"],["W","Wed"],["R","Thu"],["F","Fri"]];
+const PALETTE = ["#E4572E","#0062B8","#17A398","#F2A104","#7B4FB0","#0891B2","#D6336C","#6A994E","#E8590C","#3D5A80"];
+
+/* ---------------- state ----------------
+   class = { id, code, name, color, times:[ {id, days:Set, start, end, bldg, room} ] } */
+let classes = [];
+let selectedDay = "M";
+let editingId = null;
+let paletteCursor = 0;
+let formTimes = [];               // meeting-time blocks currently in the form
+let view = {k:1, tx:0, ty:0};     // map pan/zoom transform
+
+const clampMin=v=>Math.max(0,Math.min(1439,v));
+function newBlock(){ return {days:new Set(), start:540, end:590, bldg:"", room:""}; }
+
+/* seed with a realistic sample so it works immediately */
+function seed(){
+  const add=(code,name,times)=>classes.push({
+    id:crypto.randomUUID(),code,name,color:PALETTE[paletteCursor++%PALETTE.length],
+    times:times.map(t=>({id:crypto.randomUUID(),days:new Set(t.d.split("")),
+      start:hm(t.s),end:hm(t.e),bldg:t.b,room:t.r||""}))
+  });
+  add("C S 142","Intro to Computer Science",[{d:"MWF",s:"09:00",e:"09:50",b:"TMCB",r:"1170"}]);
+  add("MATH 112","Calculus 1",[{d:"MWF",s:"10:00",e:"10:50",b:"MARB"}]);
+  add("REL A 275","Teachings of the Book of Mormon",[{d:"MWF",s:"11:00",e:"11:50",b:"JSB"}]);
+  add("BIO 130","Biology",[{d:"TR",s:"09:30",e:"10:45",b:"LSB"},{d:"R",s:"16:00",e:"17:50",b:"BNSN",r:"lab"}]);
+  add("WRTG 150","Writing & Rhetoric",[{d:"TR",s:"11:00",e:"12:15",b:"JKB"}]);
+  add("MCOM 320","Communication",[{d:"TR",s:"13:00",e:"14:15",b:"BRMB"}]);
+}
+function hm(v){const[a,b]=v.split(":").map(Number);return a*60+b;}
+function toLabel(m){let h=Math.floor(m/60),mm=String(m%60).padStart(2,"0");const ap=h<12?"am":"pm";h=h%12||12;return `${h}:${mm}${ap}`;}
+function toInput(m){return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
+
+/* ---------------- projection: State Plane feet -> screen (aspect-preserving, north up) ---------------- */
+let VBW=1000, VBH=620, PAD=48;    // VBW/VBH track the map element's pixel size so it fills the box
+function measureMap(){
+  const el=$("#map"); if(!el)return;
+  const r=el.getBoundingClientRect();
+  if(r.width>60 && r.height>60){ VBW=Math.round(r.width); VBH=Math.round(r.height); }
+}
+let minX,maxX,minY,maxY,scale,offX,offY,PT={};
+function project(x,y){return {x:offX+(x-minX)*scale, y:offY+(maxY-y)*scale};} // flip Y so north is up
+function fitBounds(pts){
+  minX=Math.min(...pts.map(p=>p[0])); maxX=Math.max(...pts.map(p=>p[0]));
+  minY=Math.min(...pts.map(p=>p[1])); maxY=Math.max(...pts.map(p=>p[1]));
+  scale=Math.min((VBW-2*PAD)/(maxX-minX),(VBH-2*PAD)/(maxY-minY));
+  offX=(VBW-(maxX-minX)*scale)/2; offY=(VBH-(maxY-minY)*scale)/2;
+  PT=Object.fromEntries(BUILDINGS.map(b=>[b[0],project(b[2],b[3])]));
+}
+fitBounds(BUILDINGS.map(b=>[b[2],b[3]]));  // start from centroids; refit once footprints load
+
+function walkMinutes(a,b){
+  const A=BMAP[a], B=BMAP[b];
+  const d=Math.hypot(A.x-B.x,A.y-B.y)*1.3;           // feet, x1.3 detour factor
+  return Math.max(1,Math.round(d/265));               // ~265 ft/min (brisk 3 mph)
+}
+
+/* ---------------- building footprints ----------------
+   Baked-in simplified outer rings from the official BYU_Campus_Buildings layer,
+   stored as [x-1590000, y-7255000] integer feet so they render with no network.
+   loadFootprints() can later replace these with full-detail live geometry. */
+const FOOT_BX=1590000, FOOT_BY=7255000;
+const FOOT_STATIC={
+ASB:[[[8897,5096],[8874,5055],[8760,5115],[8637,5053],[8613,5093],[8694,5139],[8616,5191],[8638,5230],[8737,5175],[8871,5235],[8896,5192],[8817,5148]]],
+BNSN:[[[8487,3514],[8489,3324],[8643,3333],[8627,3272],[8509,3270],[8490,3261],[8473,3246],[8425,3245],[8408,3260],[8385,3249],[8336,3249],[8306,3238],[8257,3248],[8255,3388],[8384,3390],[8384,3331],[8405,3576],[8487,3577]]],
+BRMB:[[[7945,3550],[7945,3505],[7949,3402],[7829,3404],[7830,3505],[7886,3504],[7886,3512],[7869,3512],[7870,3545],[7901,3545],[7901,3551]]],
+CB:[[[8986,3776],[9012,3777],[9011,3857],[9073,3874],[9073,3858],[9218,3858],[9218,3799],[9214,3778],[9183,3639],[9176,3591],[9137,3591],[9137,3562],[9116,3562],[9116,3597],[9016,3595],[9015,3635],[8988,3635]]],
+CTB:[[[9637,3961],[9493,3959],[9494,3900],[9406,3899],[9405,3960],[9432,3960],[9432,4051],[9635,4054]]],
+EB:[[[9048,3554],[9048,3541],[9176,3547],[9181,3539],[9306,3540],[9307,3412],[8998,3409],[8997,3537],[9028,3537],[9033,3554]]],
+ESC:[[[8370,3936],[8588,3939],[8589,3837],[8604,3817],[8603,3795],[8590,3773],[8591,3673],[8373,3670],[8372,3759],[8420,3760],[8419,3848],[8371,3847]]],
+HBLL:[[[8906,4466],[8907,4318],[8812,4317],[8816,4251],[8889,4132],[8647,4129],[8645,4249],[8728,4249],[8728,4326],[8620,4325],[8618,4459],[8716,4464],[8715,4545],[8695,4545],[8695,4575],[8714,4575],[8714,4607],[8807,4608],[8807,4547],[8808,4465]]],
+HC:[[[8092,5615],[8143,5616],[8143,5551],[8132,5551],[8132,5532],[8127,5532],[8127,5340],[8048,5341],[8034,5463],[8034,5555],[8063,5555],[8064,5616]]],
+HFAC:[[[9261,4789],[9285,4789],[9286,4756],[9300,4757],[9301,4722],[9287,4722],[9287,4692],[8954,4689],[8954,4726],[8918,4726],[8916,4912],[8951,4913],[8951,4951],[9285,4955],[9285,4929],[9298,4929],[9299,4895],[9284,4895],[9285,4861],[9260,4861]]],
+HGB:[[[7936,3233],[7946,3167],[7882,3158],[7787,3144],[7778,3210],[7841,3219],[7838,3234],[7871,3239],[7873,3224]]],
+HRCB:[[[8842,4044],[8842,3992],[8758,3992],[8760,3869],[8696,3868],[8694,4044]]],
+JFSB:[[[8061,4113],[8381,4117],[8377,4372],[8060,4369]]],
+JKB:[[[8338,4887],[8324,4887],[8324,4922],[8337,4922],[8337,4968],[8512,4970],[8554,4983],[8598,4973],[8601,4660],[8534,4659],[8533,4682],[8524,4681],[8523,4838],[8497,4839],[8497,4873],[8503,4873],[8503,4880],[8474,4879],[8474,4888]]],
+JRCB:[[[9976,4674],[9908,4446],[9830,4445],[9781,4445],[9780,4518],[9817,4518],[9818,4628],[9768,4685],[9768,4837],[9810,4837],[9810,4847],[9906,4849],[9906,4839],[9974,4839]]],
+JSB:[[[8112,3398],[8216,3364],[8216,3340],[8198,3339],[8198,3261],[8164,3260],[8116,3259],[8116,3237],[8075,3236],[8075,3194],[8004,3193],[8003,3347],[8011,3347],[8010,3476],[8081,3478],[8081,3391],[8112,3391]]],
+KMBL:[[[8277,3920],[8318,3880],[8269,3830],[8246,3787],[8211,3787],[8195,3830],[8138,3878],[8178,3918],[8168,3926],[8212,3999],[8240,4000],[8285,3955],[8276,3946],[8286,3928]]],
+LSB:[[[8611,3015],[8611,3084],[8590,3105],[8590,3140],[8682,3150],[8682,3182],[8859,3201],[8859,3140],[8893,3141],[8893,3074],[8850,3044],[8850,2983],[8869,2935],[8848,2905],[8884,2880],[8790,2880],[8784,2829],[8749,2829],[8739,2876],[8598,2875],[8598,2906],[8611,2906]]],
+MARB:[[[8767,3608],[8755,3614],[8743,3619],[8743,3627],[8706,3626],[8705,3755],[8839,3756],[8840,3628],[8786,3627],[8786,3612],[8771,3612],[8771,3608]]],
+MCDB:[[[8891,3262],[8891,3300],[8934,3300],[8934,3290],[8993,3291],[8993,3297],[9020,3297],[9032,3291],[9142,3265],[9134,3230],[9035,3254],[8935,3256],[8935,3237],[8902,3237],[8902,3262]]],
+MCKB:[[[8013,3786],[8004,3807],[8010,3997],[8071,3998],[8072,3920],[8085,3894],[8073,3895],[8075,3704],[8088,3679],[8076,3655],[8014,3654],[8014,3669],[7961,3660],[7953,3711],[8014,3711]]],
+MOA:[[[9115,5229],[9167,5214],[9167,5178],[9211,5134],[9241,5134],[9249,5097],[9241,5060],[9204,5051],[9149,5059],[9117,5025],[9083,5058],[9029,5049],[8991,5057],[8983,5094],[8990,5132],[9063,5177],[9063,5213],[9099,5213]]],
+MSRB:[[[7587,3100],[7531,3197],[7568,3218],[7582,3193],[7588,3197],[7586,3201],[7590,3204],[7624,3146],[7619,3143],[7616,3148],[7610,3144],[7623,3120]]],
+RB:[[[7455,4565],[7484,4784],[7565,4773],[7566,4782],[7720,4762],[7721,4770],[7763,4764],[7786,4758],[7774,4665],[7781,4647],[7791,4635],[7784,4583],[7763,4586],[7720,4264],[7670,4270],[7657,4282],[7640,4148],[7485,4169],[7487,4183],[7407,4193],[7429,4365],[7391,4370],[7417,4570]]],
+SFH:[[[7171,3782],[7170,3807],[6941,3804],[6939,3965],[7125,3966],[7168,3976],[7178,3993],[7227,3994],[7441,3991],[7554,4003],[7554,4032],[7688,4033],[7688,4047],[7767,4047],[7787,4029],[7756,3911],[7728,3898],[7707,3849],[7648,3848],[7649,3787],[7316,3783],[7316,3808],[7274,3808],[7274,3783]]],
+SNLB:[[[9899,3837],[9937,3837],[9937,3801],[9972,3802],[9972,3788],[9960,3787],[9960,3771],[9972,3771],[9972,3770],[9816,3768],[9815,3968],[9898,3971]]],
+TMCB:[[[8405,4709],[8406,4606],[8429,4606],[8430,4543],[8406,4542],[8407,4492],[8323,4492],[8322,4542],[8231,4541],[8231,4553],[8130,4540],[8119,4622],[8129,4642],[8263,4640],[8263,4687],[8244,4687],[8243,4791],[8425,4793],[8426,4709]]],
+TNRB:[[[7836,4936],[7835,4956],[7830,4956],[7830,4951],[7811,4950],[7811,4955],[7806,4955],[7806,4937],[7672,4936],[7671,5058],[7804,5059],[7805,5041],[7810,5041],[7829,5046],[7834,5041],[7834,5061],[8035,5063],[8036,4938]]],
+WSC:[[[9337,4527],[9338,4493],[9574,4496],[9576,4288],[9591,4288],[9591,4237],[9575,4237],[9575,4196],[9578,4194],[9492,4193],[9492,4175],[9372,4192],[9372,4121],[9157,4119],[9154,4138],[9082,4137],[9082,4120],[9000,4117],[9000,4162],[9014,4162],[9012,4369],[9069,4371],[9069,4343],[9164,4355],[9164,4389],[9155,4389],[9155,4401],[9164,4401],[9104,4404],[9104,4424],[9163,4427],[9162,4473],[9161,4520],[9305,4522],[9322,4527]]],
+};
+let FOOT = (function(){                    // start from baked-in geometry (full feet)
+  const o={};
+  for(const k in FOOT_STATIC) o[k]=FOOT_STATIC[k].map(r=>r.map(([x,y])=>[x+FOOT_BX,y+FOOT_BY]));
+  return o;
+})();
+function refit(){                          // fit view to centroids + whatever footprints we have
+  const pts=BUILDINGS.map(b=>[b[2],b[3]]);
+  if(FOOT) Object.values(FOOT).forEach(rings=>rings.forEach(r=>r.forEach(p=>pts.push(p))));
+  fitBounds(pts);
+}
+async function loadFootprints(){           // optional: swap in full-detail live geometry
+  const url="https://services.arcgis.com/FvF9MZKp3JWPrSkg/arcgis/rest/services/"
+    +"BYU_Campus_Buildings/FeatureServer/0/query"
+    +"?where=1%3D1&outFields=Acronym&returnGeometry=true&outSR=2281&f=json";
+  try{
+    const r=await fetch(url); if(!r.ok) throw new Error(r.status);
+    const j=await r.json();
+    const want=new Set(BUILDINGS.map(b=>b[0])), fp={};
+    (j.features||[]).forEach(f=>{
+      const code=(f.attributes&&f.attributes.Acronym||"").trim();
+      if(want.has(code) && f.geometry && f.geometry.rings) fp[code]=f.geometry.rings;
+    });
+    if(Object.keys(fp).length){ FOOT=fp; refit(); renderAll(); }
+  }catch(e){ /* keep the baked-in footprints */ }
+}
+function footPath(code){
+  return FOOT[code].map(ring=>"M"+ring.map(([x,y])=>{const p=project(x,y);
+    return p.x.toFixed(1)+","+p.y.toFixed(1);}).join("L")+"Z").join(" ");
+}
+
+/* ---------------- form ---------------- */
+const $=s=>document.querySelector(s);
+const bldgOptions='<option value="" disabled selected>Building…</option>'+
+  BUILDINGS.map(b=>`<option value="${b[0]}">${b[0]} — ${b[1]}</option>`).join("");
+
+function renderTimeBlocks(){
+  const wrap=$("#f-times");
+  wrap.innerHTML=formTimes.map((t,i)=>`
+    <div class="tblock" data-i="${i}">
+      <div class="tblock-head">
+        <span>Time ${i+1}</span>
+        ${formTimes.length>1?`<button type="button" class="icon-btn" data-rmtime="${i}">remove</button>`:""}
+      </div>
+      <div class="days" data-days="${i}">
+        ${DAYS.map(([k,l])=>`<div class="day-chip" data-d="${k}" role="button" tabindex="0" aria-pressed="${t.days.has(k)}">${l[0]}${k==="R"?"h":""}</div>`).join("")}
+      </div>
+      <div class="row">
+        <div style="grid-column:1 / -1"><label>Building</label><select data-bldg="${i}">${bldgOptions}</select></div>
+        <!-- Room field removed. To restore, put this back as the 2nd column and re-enable the data-room handler below:
+        <div><label>Room <span class="opt">(optional)</span></label><input class="code-in" data-room="${i}" value="${t.room||""}" placeholder="1170" autocomplete="off"></div>
+        -->
+      </div>
+      <div class="row">
+        <div><label>Starts</label><input type="time" data-start="${i}" value="${toInput(t.start)}"></div>
+        <div><label>Ends</label><input type="time" data-end="${i}" value="${toInput(t.end)}"></div>
+      </div>
+    </div>`).join("");
+  wrap.querySelectorAll("select[data-bldg]").forEach(sel=>{ sel.value=formTimes[+sel.dataset.bldg].bldg||"";
+    sel.onchange=()=>{ formTimes[+sel.dataset.bldg].bldg=sel.value; }; });
+  // room field removed — handler disabled:
+  // wrap.querySelectorAll("input[data-room]").forEach(inp=>inp.oninput=()=>{ formTimes[+inp.dataset.room].room=inp.value.trim(); });
+  wrap.querySelectorAll(".days").forEach(dc=>{
+    const i=+dc.dataset.days;
+    dc.querySelectorAll(".day-chip").forEach(el=>{
+      const toggle=()=>{ const s=formTimes[i].days, k=el.dataset.d; s.has(k)?s.delete(k):s.add(k); el.setAttribute("aria-pressed",s.has(k)); };
+      el.onclick=toggle;
+      el.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggle();} };
+    });
+  });
+  // change the START time -> shift END by the same amount; END is independent
+  wrap.querySelectorAll("input[data-start]").forEach(inp=>inp.onchange=()=>{
+    const i=+inp.dataset.start, t=formTimes[i], ns=hm(inp.value), delta=ns-t.start;
+    t.start=ns; t.end=clampMin(t.end+delta);
+    const endInp=wrap.querySelector(`input[data-end="${i}"]`); if(endInp)endInp.value=toInput(t.end);
+  });
+  wrap.querySelectorAll("input[data-end]").forEach(inp=>inp.onchange=()=>{ formTimes[+inp.dataset.end].end=hm(inp.value); });
+  wrap.querySelectorAll("[data-rmtime]").forEach(b=>b.onclick=()=>{ formTimes.splice(+b.dataset.rmtime,1); renderTimeBlocks(); });
+}
+function addTime(){ formTimes.push(newBlock()); renderTimeBlocks(); }
+function resetForm(){
+  editingId=null; formTimes=[newBlock()];
+  $("#f-code").value="";  /* $("#f-name").value=""; // name field removed */
+  $("#f-err").textContent=""; $("#f-submit").textContent="Add class"; $("#f-cancel").style.display="none";
+  renderTimeBlocks();
+}
+function loadForEdit(id){
+  const c=classes.find(x=>x.id===id); if(!c)return;
+  editingId=id;
+  $("#f-code").value=c.code;  /* $("#f-name").value=c.name; // name field removed */
+  formTimes=c.times.map(t=>({days:new Set(t.days),start:t.start,end:t.end,bldg:t.bldg,room:t.room||""}));
+  renderTimeBlocks();
+  $("#f-submit").textContent="Save changes"; $("#f-cancel").style.display="block"; $("#f-err").textContent="";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function submit(){
+  const code=$("#f-code").value.trim(), err=$("#f-err");
+  /* const name=$("#f-name").value.trim(); // class name field removed */
+  if(!code){ err.textContent="Add a class."; return; }
+  if(!formTimes.length){ err.textContent="Add at least one meeting time."; return; }
+  for(let i=0;i<formTimes.length;i++){
+    const t=formTimes[i];
+    if(!t.bldg){ err.textContent=`Time ${i+1}: pick a building.`; return; }
+    if(!t.days.size){ err.textContent=`Time ${i+1}: choose at least one day.`; return; }
+    if(t.end<=t.start){ err.textContent=`Time ${i+1}: end must be after start.`; return; }
+  }
+  const times=formTimes.map(t=>({id:crypto.randomUUID(),days:new Set(t.days),start:t.start,end:t.end,bldg:t.bldg,room:t.room}));
+  if(editingId){ Object.assign(classes.find(x=>x.id===editingId),{code,times}); } // keeps existing name
+  else{ classes.push({id:crypto.randomUUID(),code,name:"",color:PALETTE[paletteCursor++%PALETTE.length],times}); }
+  resetForm(); renderAll();
+}
+
+/* ---------------- class list ---------------- */
+function dayString(set){return DAYS.filter(([k])=>set.has(k)).map(([k])=>k==="R"?"Th":k).join("");}
+function firstStart(c){return Math.min(...c.times.map(t=>t.start));}
+function renderClassList(){
+  const box=$("#classlist");
+  if(!classes.length){box.innerHTML='<div class="empty">No classes yet.<br>Add your first class to see your campus route.</div>';return;}
+  const sorted=[...classes].sort((a,b)=>firstStart(a)-firstStart(b));
+  box.innerHTML=sorted.map(c=>`
+    <div class="cls">
+      <div class="swatch" style="background:${c.color}"></div>
+      <div>
+        <div class="code">${c.code||"—"}</div>
+        <!-- class name intentionally not shown (field removed) -->
+        ${c.times.map(t=>`<div class="meta">${dayString(t.days)} · ${toLabel(t.start)}–${toLabel(t.end)} · ${t.bldg}</div>`).join("")}
+      </div>
+      <div class="tools">
+        <button class="icon-btn" data-edit="${c.id}">edit</button>
+        <button class="icon-btn" data-del="${c.id}">✕</button>
+      </div>
+    </div>`).join("");
+  box.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>loadForEdit(b.dataset.edit));
+  box.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    classes=classes.filter(x=>x.id!==b.dataset.del);
+    if(editingId===b.dataset.del)resetForm();
+    renderAll();
+  });
+}
+
+/* ---------------- day selector ---------------- */
+function renderDaySel(){
+  const el=$("#daysel");
+  el.innerHTML=DAYS.map(([k,l])=>{
+    const n=occurrences(k).length;
+    return `<button data-day="${k}" aria-pressed="${k===selectedDay}">${l}${n?` · ${n}`:""}</button>`;
+  }).join("");
+  el.querySelectorAll("button").forEach(b=>b.onclick=()=>{selectedDay=b.dataset.day;renderAll();});
+}
+
+/* ---------------- occurrences: expand every time block that meets on `day` ---------------- */
+function occurrences(day){
+  const occ=[];
+  classes.forEach(c=>c.times.forEach(t=>{
+    if(t.days.has(day)) occ.push({code:c.code,name:c.name,color:c.color,bldg:t.bldg,room:t.room,start:t.start,end:t.end});
+  }));
+  return occ.sort((a,b)=>a.start-b.start||a.end-b.end);
+}
+
+/* ---------------- building tooltip ---------------- */
+let pinnedCode=null, TIPINFO={};
+function dayBuildingInfo(occ){ const info={}; occ.forEach(o=>{(info[o.bldg]=info[o.bldg]||[]).push(o);}); return info; }
+function showTip(code,cx,cy){
+  const list=TIPINFO[code], tip=document.getElementById("maptip");
+  if(!list||!list.length){hideTip();return;}
+  tip.innerHTML=`<div class="tip-h">${BMAP[code]?BMAP[code].name:code} · ${code}</div>`+
+    list.map(o=>`<div class="tip-r"><span class="tip-sw" style="background:${o.color}"></span>
+      <span><b>${o.code||o.name||"Class"}</b> · ${toLabel(o.start)}–${toLabel(o.end)}</span></div>`).join("");
+  tip.style.display="block";
+  const card=$("#map").closest(".mapcard").getBoundingClientRect();
+  let x=cx-card.left+14, y=cy-card.top+14, tw=tip.offsetWidth, th=tip.offsetHeight;
+  if(x+tw>card.width-6) x=cx-card.left-tw-14;
+  if(y+th>card.height-6) y=cy-card.top-th-14;
+  tip.style.left=Math.max(6,x)+"px"; tip.style.top=Math.max(6,y)+"px";
+}
+function hideTip(){ const t=document.getElementById("maptip"); if(t)t.style.display="none"; }
+
+/* ---------------- map (pan/zoom via a transformed <g class="vp">) ---------------- */
+function renderMap(){
+  const day=selectedDay;
+  const occ=occurrences(day);
+  TIPINFO=dayBuildingInfo(occ);
+  if(pinnedCode && !TIPINFO[pinnedCode]) pinnedCode=null;
+  hideTip();
+  const usedOrder=[];                 // buildings in time order (dedup consecutive repeats)
+  occ.forEach(o=>{if(usedOrder[usedOrder.length-1]!==o.bldg)usedOrder.push(o.bldg);});
+  const usedSet=new Set(occ.map(o=>o.bldg));
+  const colorFor=code=>{const o=occ.find(x=>x.bldg===code);return o?o.color:null;};
+  // walking legs: transitions between consecutive occurrences in different buildings, with the gap
+  const legs=[];
+  for(let i=1;i<occ.length;i++){
+    if(occ[i].bldg!==occ[i-1].bldg) legs.push({from:occ[i-1].bldg,to:occ[i].bldg,gap:occ[i].start-occ[i-1].end});
+  }
+
+  let svg=`<svg viewBox="0 0 ${VBW} ${VBH}" role="img" aria-label="Campus map with today's route">`;
+  svg+=`<rect x="0" y="0" width="${VBW}" height="${VBH}" fill="var(--map-bg)"/>`;
+  svg+=`<g class="vp" transform="translate(${view.tx} ${view.ty}) scale(${view.k})">`;
+  // subtle campus context grid
+  for(let gx=0;gx<=VBW;gx+=125)svg+=`<line x1="${gx}" y1="0" x2="${gx}" y2="${VBH}" stroke="#d3dfe9" stroke-width="1"/>`;
+  for(let gy=0;gy<=VBH;gy+=130)svg+=`<line x1="0" y1="${gy}" x2="${VBW}" y2="${gy}" stroke="#d3dfe9" stroke-width="1"/>`;
+  // building footprints
+  if(FOOT){
+    BUILDINGS.forEach(b=>{
+      const code=b[0]; if(!FOOT[code])return;
+      const used=usedSet.has(code);
+      const fill=used?colorFor(code):"#d7e0e9", stroke=used?"#ffffff":"#b4c2d0";
+      svg+=`<path d="${footPath(code)}" ${used?`data-code="${code}"`:""} fill="${fill}" fill-rule="evenodd" fill-opacity="${used?0.92:1}"
+        stroke="${stroke}" stroke-width="${used?1.5:1}" stroke-linejoin="round"/>`;
+    });
+  }
+  // commute legs: solid <=30 min gap, dashed >30, dotted >60
+  legs.forEach(leg=>{
+    const a=PT[leg.from], b=PT[leg.to];
+    const style = leg.gap>60 ? `stroke-dasharray="1 12" stroke-linecap="round"`
+                : leg.gap>30 ? `stroke-dasharray="12 9"`
+                : `stroke-linecap="round"`;
+    svg+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"
+      stroke="var(--ink)" stroke-width="4.5" opacity="0.85" ${style}/>`;
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2, w=walkMinutes(leg.from,leg.to);
+    svg+=`<g transform="translate(${mx.toFixed(1)},${my.toFixed(1)})">
+      <rect x="-24" y="-11" width="48" height="22" rx="11" fill="#fff" stroke="var(--line)"/>
+      <text x="0" y="4" text-anchor="middle" font-size="12" font-family="var(--mono)" fill="var(--ink-2)">${w} min</text></g>`;
+  });
+  // building markers + labels
+  BUILDINGS.forEach(b=>{
+    const code=b[0],p=PT[code],used=usedSet.has(code),hasFoot=!!(FOOT&&FOOT[code]);
+    if(used){
+      const col=colorFor(code);
+      const count=occ.filter(o=>o.bldg===code).length;
+      const order=usedOrder.indexOf(code)+1;
+      svg+=`<circle cx="${p.x}" cy="${p.y}" r="${hasFoot?11:12}" data-code="${code}" fill="${col}" stroke="#fff" stroke-width="${hasFoot?2.5:3}"/>`;
+      svg+=`<text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="var(--mono)">${order}</text>`;
+      svg+=`<text x="${p.x}" y="${p.y-16}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)" font-family="var(--mono)" paint-order="stroke" stroke="#fff" stroke-width="3">${code}</text>`;
+      if(count>1)svg+=`<circle cx="${p.x+12}" cy="${p.y-11}" r="7" fill="var(--ink)"/>
+        <text x="${p.x+12}" y="${p.y-7}" text-anchor="middle" font-size="9" fill="#fff" font-family="var(--mono)">${count}</text>`;
+    }else{
+      if(!hasFoot)svg+=`<circle cx="${p.x}" cy="${p.y}" r="4" fill="#aebecd"/>`;
+      svg+=`<text x="${p.x}" y="${hasFoot?p.y+3:p.y-8}" text-anchor="middle" font-size="10" fill="#7f93a6" font-family="var(--mono)"
+        paint-order="stroke" stroke="${hasFoot?'#e6edf3':'transparent'}" stroke-width="2.5">${code}</text>`;
+    }
+  });
+  svg+=`</g>`; // end pan/zoom group
+  // fixed north arrow (not affected by pan/zoom)
+  svg+=`<g transform="translate(${VBW-42},40)" font-family="var(--mono)">
+    <line x1="0" y1="15" x2="0" y2="-15" stroke="var(--ink)" stroke-width="2"/>
+    <path d="M0,-19 L5,-8 L-5,-8 Z" fill="var(--ink)"/>
+    <text x="0" y="29" text-anchor="middle" font-size="12" fill="var(--ink)">N</text></g>`;
+  svg+=`</svg>`;
+  $("#map").innerHTML=svg;
+  applyView();
+}
+
+/* ---------------- route strip (under the map) ---------------- */
+function renderTimeline(){
+  const day=selectedDay;
+  const dl=DAYS.find(([k])=>k===day)[1];
+  const occ=occurrences(day);
+  const t=$("#timeline");
+  if(!occ.length){
+    t.innerHTML=`<div class="route-head">${dl} · no classes</div>
+      <div class="empty">Nothing scheduled on ${dl}. Enjoy the break.</div>`;
+    return;
+  }
+  let html=`<div class="route-head">${dl} · ${occ.length} class${occ.length>1?"es":""} · ${toLabel(occ[0].start)}–${toLabel(occ[occ.length-1].end)}</div><div class="routestrip">`;
+  occ.forEach((o,i)=>{
+    html+=`<div class="rcard" style="--c:${o.color}">
+        <div class="rc-time">${toLabel(o.start)}–${toLabel(o.end)}</div>
+        <div class="rc-code">${o.code||o.name||"Class"}</div>
+        <div class="rc-loc"><b>${o.bldg}</b> · ${BMAP[o.bldg]?BMAP[o.bldg].name:""}</div>
+      </div>`;  /* room removed from rc-loc (was: ${o.room ? " "+o.room : ""}) */
+    if(i<occ.length-1){
+      const nx=occ[i+1], gap=nx.start-o.end;
+      if(o.bldg===nx.bldg){
+        html+=`<div class="rconn"><div class="rc-line same"></div><div class="rc-walk">same building</div><div class="rc-gap">${gap} min</div></div>`;
+      }else{
+        const w=walkMinutes(o.bldg,nx.bldg), tight=w>gap, kind=gap>60?"dotted":gap>30?"dashed":"solid";
+        html+=`<div class="rconn ${kind}${tight?" tight":""}"><div class="rc-line"></div><div class="rc-walk">~${w} min walk</div><div class="rc-gap">${gap} min gap${tight?" · tight":""}</div></div>`;
+      }
+    }
+  });
+  html+=`</div>`;
+  t.innerHTML=html;
+}
+
+/* ---------------- map pan / zoom ---------------- */
+function applyView(){ const g=$("#map").querySelector(".vp"); if(g)g.setAttribute("transform",`translate(${view.tx} ${view.ty}) scale(${view.k})`); }
+function clampView(){
+  const m=200;
+  view.k=Math.min(8,Math.max(1,view.k));
+  view.tx=Math.min(m,Math.max(VBW*(1-view.k)-m,view.tx));
+  view.ty=Math.min(m,Math.max(VBH*(1-view.k)-m,view.ty));
+}
+function resetView(){ view={k:1,tx:0,ty:0}; applyView(); }
+function initMapInteraction(){
+  const el=$("#map");
+  const pts=new Map(); let lastDist=null,lastMid=null,downX=0,downY=0,moved=false;
+  const rect=()=>{const s=el.querySelector("svg");return (s||el).getBoundingClientRect();};
+  const toVB=(cx,cy)=>{const r=rect();return [(cx-r.left)/r.width*VBW,(cy-r.top)/r.height*VBH];};
+  function zoomAt(sx,sy,f){ const nk=Math.min(8,Math.max(1,view.k*f)); const g=nk/view.k;
+    view.tx=sx-(sx-view.tx)*g; view.ty=sy-(sy-view.ty)*g; view.k=nk; clampView(); applyView(); }
+  el.addEventListener("wheel",e=>{e.preventDefault();const[sx,sy]=toVB(e.clientX,e.clientY);zoomAt(sx,sy,e.deltaY<0?1.12:1/1.12);},{passive:false});
+  el.addEventListener("pointerdown",e=>{
+    el.setPointerCapture(e.pointerId); pts.set(e.pointerId,[e.clientX,e.clientY]);
+    if(pts.size===1){downX=e.clientX;downY=e.clientY;moved=false;}
+    el.style.cursor="grabbing"; lastDist=lastMid=null;
+  });
+  el.addEventListener("pointermove",e=>{
+    if(!pts.has(e.pointerId))return;
+    const prev=pts.get(e.pointerId); pts.set(e.pointerId,[e.clientX,e.clientY]); const r=rect();
+    if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>6) moved=true;
+    if(pts.size===1){
+      view.tx+=(e.clientX-prev[0])/r.width*VBW; view.ty+=(e.clientY-prev[1])/r.height*VBH; clampView(); applyView();
+      if(moved && !pinnedCode) hideTip();
+    }else if(pts.size>=2){
+      hideTip();
+      const a=[...pts.values()], dist=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);
+      const midC=[(a[0][0]+a[1][0])/2,(a[0][1]+a[1][1])/2], [mx,my]=toVB(midC[0],midC[1]);
+      if(lastDist)zoomAt(mx,my,dist/lastDist);
+      if(lastMid){ view.tx+=(midC[0]-lastMid[0])/r.width*VBW; view.ty+=(midC[1]-lastMid[1])/r.height*VBH; clampView(); applyView(); }
+      lastDist=dist; lastMid=midC;
+    }
+  });
+  const up=e=>{
+    const tap = pts.size===1 && !moved;                 // quick tap, not a drag
+    pts.delete(e.pointerId);
+    if(pts.size<2){lastDist=lastMid=null;}
+    if(pts.size===0)el.style.cursor="grab";
+    if(tap){
+      const hit=document.elementFromPoint(e.clientX,e.clientY);
+      const b=hit&&hit.closest?hit.closest("[data-code]"):null;
+      if(b){ pinnedCode=b.dataset.code; showTip(pinnedCode,e.clientX,e.clientY); }
+      else{ pinnedCode=null; hideTip(); }
+    }
+  };
+  el.addEventListener("pointerup",up); el.addEventListener("pointercancel",up);
+  // desktop hover (only when not dragging and nothing pinned)
+  el.addEventListener("mousemove",e=>{
+    if(pts.size>0||pinnedCode)return;
+    const b=e.target.closest?e.target.closest("[data-code]"):null;
+    if(b) showTip(b.dataset.code,e.clientX,e.clientY); else hideTip();
+  });
+  el.addEventListener("mouseleave",()=>{ if(!pinnedCode) hideTip(); });
+  $("#zoom-in").onclick=()=>zoomAt(VBW/2,VBH/2,1.3);
+  $("#zoom-out").onclick=()=>zoomAt(VBW/2,VBH/2,1/1.3);
+  $("#zoom-reset").onclick=resetView;
+}
+
+/* ---------------- render ---------------- */
+function renderAll(){renderClassList();renderDaySel();renderMap();renderTimeline();}
+
+seed();
+resetForm();        // initialize the form (one empty time block) + building menus
+$("#f-submit").onclick=submit;
+$("#f-cancel").onclick=resetForm;
+$("#f-addtime").onclick=addTime;
+initMapInteraction();
+measureMap();       // size the SVG coordinate box to the map element (fills the width)
+refit();            // fit view to baked-in footprints
+renderAll();
+loadFootprints();   // optionally swap in full-detail live geometry
+let _rz; window.addEventListener("resize",()=>{ clearTimeout(_rz); _rz=setTimeout(()=>{ measureMap(); refit(); renderMap(); },120); });
+</script>
+</body>
+</html>
