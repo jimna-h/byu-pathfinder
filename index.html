@@ -454,7 +454,7 @@ function toLabel(m){let h=Math.floor(m/60),mm=String(m%60).padStart(2,"0");const
 function toInput(m){return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
 
 /* ---------------- projection: State Plane feet -> screen (aspect-preserving, north up) ---------------- */
-let VBW=1000, VBH=620, PAD=48;    // VBW/VBH track the map element's pixel size; PAD is the fit margin
+let VBW=1000, VBH=620, PAD=24;    // VBW/VBH track the map element's pixel size; PAD is the fit margin
 function measureMap(){
   const el=$("#map"); if(!el)return;
   const r=el.getBoundingClientRect();
