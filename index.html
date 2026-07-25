@@ -373,10 +373,17 @@ function fitBounds(pts){
 }
 fitBounds(BUILDINGS.map(b=>[b[2],b[3]]));  // start from centroids; refit once footprints load
 
-function walkMinutes(a,b){
-  const A=BMAP[a], B=BMAP[b];
-  const d=Math.hypot(A.x-B.x,A.y-B.y)*1.3;           // feet, x1.3 detour factor
-  return Math.max(1,Math.round(d/265));               // ~265 ft/min (brisk 3 mph)
+function walkMinutes(a, b){
+  if (a === b) return 0; // Same building—no outdoor transit required
+
+  const A = BMAP[a], B = BMAP[b];
+  if (!A || !B) return 1; // if building can't be found show a 1
+
+  const outdoorDist = Math.hypot(A.x - B.x, A.y - B.y) * 1.3;
+  const outdoorMinutes = Math.round(outdoorDist / 265);
+
+  // 2 minutes fixed overhead (1 min exit + 1 min enter) + pure outdoor stride time
+  return 2 + outdoorMinutes; 
 }
 
 /* ---------------- building footprints ----------------
