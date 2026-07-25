@@ -337,7 +337,7 @@ let view = {k:1, tx:0, ty:0};     // map pan/zoom transform
 const clampMin=v=>Math.max(0,Math.min(1439,v));
 function newBlock(){ return {days:new Set(), start:540, end:590, bldg:"", room:""}; }
 
-/* seed with a realistic sample so it works immediately */
+/* seed with a realistic sample so it works immediately
 function seed(){
   const add=(code,name,times)=>classes.push({
     id:crypto.randomUUID(),code,name,color:PALETTE[paletteCursor++%PALETTE.length],
@@ -350,7 +350,7 @@ function seed(){
   add("BIO 130","Biology",[{d:"TR",s:"09:30",e:"10:45",b:"LSB"},{d:"R",s:"16:00",e:"17:50",b:"BNSN",r:"lab"}]);
   add("WRTG 150","Writing & Rhetoric",[{d:"TR",s:"11:00",e:"12:15",b:"JKB"}]);
   add("MCOM 320","Communication",[{d:"TR",s:"13:00",e:"14:15",b:"BRMB"}]);
-}
+}*/
 function hm(v){const[a,b]=v.split(":").map(Number);return a*60+b;}
 function toLabel(m){let h=Math.floor(m/60),mm=String(m%60).padStart(2,"0");const ap=h<12?"am":"pm";h=h%12||12;return `${h}:${mm}${ap}`;}
 function toInput(m){return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;}
@@ -764,7 +764,7 @@ function initMapInteraction(){
 /* ---------------- render ---------------- */
 function renderAll(){renderClassList();renderDaySel();renderMap();renderTimeline();}
 
-seed();
+/*seed();*/
 resetForm();        // initialize the form (one empty time block) + building menus
 $("#f-submit").onclick=submit;
 $("#f-cancel").onclick=resetForm;
